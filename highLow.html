@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>test</title>
+    <script src="./lib/webgl-utils.js"></script>
+    <script src="./lib/webgl-debug.js"></script>
+    <script src="./lib/cuon-utils.js"></script>
+    <script src="./lib/cuon-matrix.js"></script>
+    <script src="highlow.js"></script>
+</head>
+
+<body onload="main()">
+    
+    <canvas id="webgl" width="500" height="500">
+    Please use a browser that supports "canvas"
+    </canvas>
+
+    <form name = doan>
+        <input type="button" value="Cao hơn" id = "high">
+        <input type="button" value="Bằng nhau" id = "equal">
+        <input type="button" value="Thấp hơn" id = "low">
+        <p>Số tiền của bạn: <p>
+        <p id="money">1000</p>
+        <input type="button" value="Đặt lại số tiền" id = "reset" onclick="Reset()">
+        <h3>Nhấn Q, W, E, A, S, D để thay đổi góc nhìn</h3>
+        <p id="eye"></p>
+        <h3>Nhấn phím mũi tên trái, phải để quay quanh trục Z</h3>
+        <p id="rotate"></p>
+        <h3>Thay đổi màu sắc</h3>
+        <input type="text" id="red" size="10">
+        <input type="text" id="green" size="10">
+        <input type="text" id="blue" size="10">
+        <input type="button" value="Đổi màu" id="changeColor">
+    </form>
+</body>
+</html>
