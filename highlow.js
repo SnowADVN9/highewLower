@@ -1,11 +1,10 @@
 var VSHADER_SOURCE =
     'attribute vec4 a_Position;\n' +
-    'uniform mat4 u_ViewMatrix;\n' +
-    'uniform mat4 u_ModelMatrix;\n' +
+    'uniform mat4 u_MvpMatrix;\n' +
     'attribute vec2 a_TexCoord;\n' +
     'varying vec2 v_TexCoord;\n' +
     'void main() {\n' +
-    '    gl_Position = u_ViewMatrix * u_ModelMatrix * a_Position;\n' +
+    '    gl_Position = u_MvpMatrix * a_Position;\n' +
     '    v_TexCoord = a_TexCoord;\n' +
     '}\n';
 
@@ -43,25 +42,20 @@ function main() {
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
-    var u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
-    if(!u_ViewMatrix) { 
-        console.log('Failed to get the storage locations of u_ViewMatrix');
-        return;
-    }
-    var u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
-    if(!u_ModelMatrix) {
-        console.log('Failed to get the storage locations of u_ModelMatrix');
+    var u_MvpMatrix = gl.getUniformLocation(gl.program, 'u_MvpMatrix');
+    if (!u_MvpMatrix) { 
+        console.log('Failed to get the storage location of u_MvpMatrix');
         return;
     }
 
-    var viewMatrix = new Matrix4();
-    var modelMatrix = new Matrix4();
-    document.onkeydown = function(ev){ keydown(ev, gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix); };
+
+    var mvpMatrix = new Matrix4();
+    document.onkeydown = function(ev){ keydown(ev, gl, n, u_MvpMatrix, mvpMatrix); };
     document.getElementById('changeColor').onclick = function() {
         changeColor(gl,n);
     };
     
-    draw(gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix);
+    draw(gl, n, u_MvpMatrix, mvpMatrix);
     if (!initTextures(gl, n)) {
         console.log('Failed to intialize the texture.');
         return;
@@ -126,66 +120,68 @@ function main() {
 }
 
 function initVertexBuffers(gl) {
-    var verticesTexCoords = new Float32Array([
-        -0.4,  0.6,  0.2,   0.0, 1.0,
-        -0.4, -0.6,  0.2,   0.0, 0.0,
-         0.4,  0.6,  0.2,   1.0, 1.0,
-         0.4, -0.6,  0.2,   1.0, 0.0,
-        
-        -0.4,  0.6, -0.2,   0.0, 1.0,
-        -0.4, -0.6, -0.2,   0.0, 0.0,
-         0.4,  0.6, -0.2,   1.0, 1.0,
-         0.4, -0.6, -0.2,   1.0, 0.0,
-
-         -0.4,  0.6, -0.2,   0.0, 0.0,
-         -0.4, -0.6, -0.2,   0.0, 1.0,
-         -0.4,  0.6,  0.2,   1.0, 0.0,
-         -0.4, -0.6,  0.2,   1.0, 1.0,
-        
-         0.4,  0.6, 0.2,   0.0, 0.0,
-         0.4, -0.6, 0.2,   0.0, 1.0,
-         0.4,  0.6, -0.2,   1.0, 0.0,
-         0.4, -0.6, -0.2,   1.0, 1.0,
-         
-         
+    var vertices = new Float32Array([
+         0.7, 1.0, 0.35,  -0.7, 1.0, 0.35,  -0.7,-1.0, 0.35,   0.7,-1.0, 0.35,    //front
+         0.7, 1.0, 0.35,   0.7,-1.0, 0.35,   0.7,-1.0,-0.35,   0.7, 1.0,-0.35,    //right
+        -0.7, 1.0, 0.35,  -0.7, 1.0,-0.35,  -0.7,-1.0,-0.35,  -0.7,-1.0, 0.35,    //left
+         0.7,-1.0,-0.35,  -0.7,-1.0,-0.35,  -0.7, 1.0,-0.35,   0.7, 1.0,-0.35     //back
     ]);
-    var n = 12;
 
-    var vertexTexCoordBuffer = gl.createBuffer();
-    if (!vertexTexCoordBuffer) {
+    var texCoords = new Float32Array([
+        1.0, 1.0,   0.0, 1.0,   0.0, 0.0,   1.0, 0.0,    //front
+        0.0, 1.0,   0.0, 0.0,   1.0, 0.0,   1.0, 1.0,    //right
+        1.0, 1.0,   0.0, 1.0,   0.0, 0.0,   1.0, 0.0,    //left
+        0.0, 0.0,   1.0, 0.0,   1.0, 1.0,   0.0, 1.0     //back
+    ]);
+
+    var indices = new Uint8Array([
+        0, 1, 2,   0, 2, 3,    // front
+        4, 5, 6,   4, 6, 7,    // right
+        8, 9,10,   8,10,11,    // up
+       12,13,14,  12,14,15,    // left  
+    ]);
+
+    var indexBuffer = gl.createBuffer();
+    if (!indexBuffer) {
         console.log('Failed to create the buffer object');
         return -1;
     }
+    if (!initArrayBuffer(gl, vertices, 3, gl.FLOAT, 'a_Position')) return -1;
+    if (!initArrayBuffer(gl, texCoords, 2, gl.FLOAT, 'a_TexCoord')) return -1;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexTexCoordBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, verticesTexCoords, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-    var FSIZE = verticesTexCoords.BYTES_PER_ELEMENT;
-    var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
-    if (a_Position < 0) {
-        console.log('Failed to get the storage location of a_Position');
-        return -1;
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    return indices.length;
+}
+
+function initArrayBuffer(gl, data, num, type, attribute) {
+    var buffer = gl.createBuffer();
+    if (!buffer) {
+        console.log('Failed to create the buffer object');
+        return false;
     }
-    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, FSIZE * 5, 0);
-    gl.enableVertexAttribArray(a_Position);
-
-    var a_TexCoord = gl.getAttribLocation(gl.program, 'a_TexCoord');
-    if (a_TexCoord < 0) {
-        console.log('Failed to get the storage location of a_TexCoord');
-        return -1;
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    var a_attribute = gl.getAttribLocation(gl.program, attribute);
+    if (a_attribute < 0) {
+        console.log('Failed to get the storage location of ' + attribute);
+        return false;
     }
+    gl.vertexAttribPointer(a_attribute, num, type, false, 0, 0);
+    gl.enableVertexAttribArray(a_attribute);
 
-    gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, FSIZE * 5, FSIZE * 3);
-    gl.enableVertexAttribArray(a_TexCoord);
+    return true;
+}
 
-    return n;
-    }
+var card;
+var number;
+var suit;
 
-    var card;
-    var number;
-    var suit;
-
-    function play(){
+function play(){
     card = './PlayingCards/';
     number = Math.floor(Math.random() * 13) + 1;
     suit = Math.floor(Math.random() * 4);
@@ -284,9 +280,9 @@ function changeColor(gl, n) {
     }
     gl.uniform3f(u_Color, red, green, blue);
     
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_Buffer_BIT);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFẺ_BIT);
 
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+    gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);
 }
     
 function loadTexture(gl, n, texture, u_Sampler, image) {
@@ -306,14 +302,12 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
     
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    for(var i = 0; i <= 12; i += 4){
-        gl.drawArrays(gl.TRIANGLE_STRIP, i, 4);
-    }    
+    gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0); 
 }
 
-var g_eyeX = 0.0, g_eyeY = 0.0, g_eyeZ = 0.0;
+var g_eyeX = 3.0, g_eyeY = 3.0, g_eyeZ = 7.0;
 var currentAngle = 0.0;
-function keydown(ev, gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix) {
+function keydown(ev, gl, n, u_MvpMatrix, mvpMatrix) {
     if(ev.keyCode == 65) { //A
         g_eyeX += 0.01;
     } 
@@ -341,22 +335,23 @@ function keydown(ev, gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix
     else { 
         return; 
     }
-    draw(gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix);    
+    draw(gl, n, u_MvpMatrix, mvpMatrix);    
 }
-function draw(gl, n, u_ViewMatrix, viewMatrix, u_ModelMatrix, modelMatrix) {
+
+var modelMatrix = new Matrix4();
+var viewMatrix = new Matrix4();
+var projMatrix = new Matrix4();
+function draw(gl,n, u_MvpMatrix, mvpMatrix) {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     viewMatrix.setLookAt(g_eyeX, g_eyeY, g_eyeZ, 0, 0, -1, 0, 1, 0);
-    gl.uniformMatrix4fv(u_ViewMatrix, false, viewMatrix.elements);
-
     document.getElementById("eye").innerHTML = 'eyeX: ' + Math.round(g_eyeX * 100)/100 + ', eyeY: ' + Math.round(g_eyeY * 100)/100 + ', eyeZ: ' + Math.round(g_eyeZ * 100)/100;
-    //quay
     modelMatrix.setIdentity();
     modelMatrix.rotate(currentAngle, 0, 0, 1);
-    gl.uniformMatrix4fv(u_ModelMatrix, false, modelMatrix.elements);
+    projMatrix.setPerspective(30, 1, 1, 100);
+    mvpMatrix.set(projMatrix).multiply(viewMatrix).multiply(modelMatrix);
+    gl.uniformMatrix4fv(u_MvpMatrix, false, mvpMatrix.elements);
     document.getElementById("rotate").innerHTML = 'Góc: ' + currentAngle;
-    for(var i = 0; i <= 12; i += 4){
-        gl.drawArrays(gl.TRIANGLE_STRIP, i, 4);
-    }    
+    gl.drawElements(gl.TRIANGLES, n, gl.UNSIGNED_BYTE, 0);    
 }
 
 function Reset(){
